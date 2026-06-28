@@ -10,3 +10,4 @@ __pycache__/
 data/raw/*.csv
 data/processed/*.csv
 data/validation_reports/*.csv
+data/processed/*.parquet
