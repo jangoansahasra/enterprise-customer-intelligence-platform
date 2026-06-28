@@ -8,6 +8,8 @@ RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw"
 PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 
 OUTPUT_PATH = PROCESSED_DATA_DIR / "cleaned_taxi_trips_2025_q1.parquet"
+MIN_VALID_DATETIME = pd.Timestamp("2024-12-31")
+MAX_VALID_DATETIME = pd.Timestamp("2025-04-03 23:59:59")
 
 
 def standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
@@ -87,6 +89,10 @@ def filter_invalid_rows(df: pd.DataFrame) -> pd.DataFrame:
         & (df["total_amount"] >= 0)
         & df["pickup_location_id"].notna()
         & df["dropoff_location_id"].notna()
+        & (df["tpep_pickup_datetime"] >= MIN_VALID_DATETIME)
+        & (df["tpep_pickup_datetime"] <= MAX_VALID_DATETIME)
+        & (df["tpep_dropoff_datetime"] >= MIN_VALID_DATETIME)
+        & (df["tpep_dropoff_datetime"] <= MAX_VALID_DATETIME)
     )
 
     return df.loc[valid_mask].copy()

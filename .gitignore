@@ -13,3 +13,4 @@ data/validation_reports/*.csv
 data/processed/*.parquet
 logs/
 *.log
+.Rapp.history
