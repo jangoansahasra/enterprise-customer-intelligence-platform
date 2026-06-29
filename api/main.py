@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from sqlalchemy import text
+from api.routes.predictions import router as predictions_router
 
 from api.database import get_engine
 from api.routes.analytics import router as analytics_router
@@ -12,6 +13,7 @@ app = FastAPI(
 )
 
 app.include_router(analytics_router)
+app.include_router(predictions_router)
 
 
 @app.get("/")
