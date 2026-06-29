@@ -313,18 +313,16 @@ Planned:
 - optional weather or holiday enrichment
 - optional model monitoring and drift tracking
 
-## Interview Talking Points
+## Technical Highlights
 
-This project can be described as:
+This project demonstrates an end-to-end urban mobility data platform that processes over 10 million NYC taxi trip records, validates and transforms raw operational data, loads analytics-ready tables into PostgreSQL, creates SQL views for reporting, exposes insights through FastAPI, and trains machine learning models for trip duration prediction.
 
-> An end-to-end urban mobility data platform that processes over 10 million NYC taxi trip records, validates and transforms raw operational data, loads analytics-ready tables into PostgreSQL, creates SQL views for reporting, exposes insights through FastAPI, and trains machine learning models for trip duration prediction.
+Key technical highlights:
 
-Important technical points to discuss:
-
-- why raw data should remain unchanged
-- how data validation improves trust
-- why fact and dimension tables are useful
-- how SQL views simplify analytics and BI use cases
-- why APIs are useful for exposing analytical data
-- why post-trip features can inflate ML performance
-- why a pre-trip model is more realistic for operational prediction
+- raw data is preserved unchanged for reproducibility
+- data validation improves trust before transformation
+- fact and dimension tables support analytics and BI use cases
+- SQL views simplify reporting, API access, and ML feature generation
+- FastAPI exposes curated analytics without requiring direct database access
+- post-trip features can inflate ML performance
+- the pre-trip model is more realistic for operational prediction

@@ -284,7 +284,7 @@ Planned enhancements:
 - model monitoring and drift tracking
 - deployment-ready API containerization
 
-## Resume Summary
+## Summary
 
 Enterprise Urban Mobility Data Platform | Python, PostgreSQL, FastAPI, Docker, Power BI
 
