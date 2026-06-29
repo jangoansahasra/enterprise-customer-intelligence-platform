@@ -450,6 +450,15 @@ Additional project documentation:
 docs/api_documentation.md
 docs/ml_modeling.md
 ```
+## Testing
+
+The project includes automated tests for core transformation logic and API request validation.
+
+Run all tests:
+
+```bash
+python -m pytest
+```
 
 ## Future Improvements
 
