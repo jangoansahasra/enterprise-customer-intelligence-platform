@@ -2,9 +2,9 @@
 
 ## Overview
 
-The FastAPI layer exposes analytics and machine learning predictions from the Enterprise Urban Mobility Data Platform.
+The FastAPI layer exposes analytics and machine learning predictions from the PostgreSQL urban mobility database.
 
-The API reads from PostgreSQL analytics views, fact/dimension tables, and a trained machine learning model built from cleaned NYC Yellow Taxi trip data.
+The API reads from SQL analytics views and fact/dimension tables created from cleaned NYC Yellow Taxi trip data.
 
 ## Run Locally
 
@@ -14,50 +14,31 @@ Start PostgreSQL with Docker Compose:
 docker compose up -d
 ```
 
-Run the API:
+Run the FastAPI server:
 
 ```bash
 python -m uvicorn api.main:app --reload
 ```
 
-Interactive API docs are available at:
+Open the interactive API documentation:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-## Environment Variables
-
-The API uses the following environment variables:
+## Health Check
 
 ```text
-DB_HOST=localhost
-DB_PORT=5433
-DB_NAME=urban_mobility_db
-DB_USER=urban_user
-DB_PASSWORD=urban_password
+GET /health
 ```
 
-These should be stored locally in `.env`.
+Checks whether the API is running and whether the database connection works.
 
-## Endpoints
+Example:
 
-### GET /
-
-Returns a welcome message.
-
-Example response:
-
-```json
-{
-  "message": "Enterprise Urban Mobility Data Platform API",
-  "docs": "/docs"
-}
+```bash
+curl http://127.0.0.1:8000/health
 ```
-
-### GET /health
-
-Checks API and database connectivity.
 
 Example response:
 
@@ -68,9 +49,21 @@ Example response:
 }
 ```
 
-### GET /analytics/trips/summary
+## Analytics Endpoints
 
-Returns executive summary metrics.
+### Trip Summary
+
+```text
+GET /analytics/trips/summary
+```
+
+Returns platform-level trip, revenue, fare, distance, duration, and tip summary metrics.
+
+Example:
+
+```bash
+curl http://127.0.0.1:8000/analytics/trips/summary
+```
 
 Example response:
 
@@ -85,41 +78,41 @@ Example response:
 }
 ```
 
-### GET /analytics/revenue/by-borough
-
-Returns top pickup-to-dropoff borough revenue patterns.
-
-Query parameters:
+### Revenue By Borough
 
 ```text
-limit: integer, default 10, min 1, max 100
+GET /analytics/revenue/by-borough
 ```
+
+Returns revenue and trip metrics by pickup and dropoff borough.
 
 Example:
 
 ```bash
-curl "http://127.0.0.1:8000/analytics/revenue/by-borough?limit=5"
+curl "http://127.0.0.1:8000/analytics/revenue/by-borough?limit=10"
 ```
 
-### GET /analytics/demand/by-hour
+### Demand By Hour
 
-Returns trip demand by pickup hour.
+```text
+GET /analytics/demand/by-hour
+```
+
+Returns hourly trip demand and revenue patterns.
 
 Example:
 
 ```bash
-curl "http://127.0.0.1:8000/analytics/demand/by-hour"
+curl http://127.0.0.1:8000/analytics/demand/by-hour
 ```
 
-### GET /analytics/zones/top-pickups
-
-Returns top pickup zones by trip volume.
-
-Query parameters:
+### Top Pickup Zones
 
 ```text
-limit: integer, default 10, min 1, max 100
+GET /analytics/zones/top-pickups
 ```
+
+Returns the highest-demand pickup zones.
 
 Example:
 
@@ -127,21 +120,54 @@ Example:
 curl "http://127.0.0.1:8000/analytics/zones/top-pickups?limit=5"
 ```
 
-### GET /analytics/payments/summary
+Example response:
 
-Returns payment type summary metrics.
+```json
+[
+  {
+    "pickup_borough": "Manhattan",
+    "pickup_zone": "Midtown Center",
+    "pickup_trips": 487188,
+    "total_revenue": "12084375.55",
+    "avg_total_amount": "24.80",
+    "avg_trip_distance": "2.63",
+    "avg_trip_duration_minutes": "14.47"
+  }
+]
+```
+
+### Payment Summary
+
+```text
+GET /analytics/payments/summary
+```
+
+Returns trip and revenue metrics by payment type.
 
 Example:
 
 ```bash
-curl "http://127.0.0.1:8000/analytics/payments/summary"
+curl http://127.0.0.1:8000/analytics/payments/summary
 ```
 
-### POST /predict/trip-duration
+## Prediction Endpoints
 
-Predicts taxi trip duration in minutes using the trained machine learning model.
+### Analytical Trip Duration Prediction
 
-The endpoint expects trip features as JSON and returns a predicted duration.
+```text
+POST /predict/trip-duration
+```
+
+This endpoint predicts taxi trip duration using the analytical ML model.
+
+This model includes post-trip financial fields such as:
+
+```text
+fare_amount
+total_amount
+```
+
+Because fare and total amount are usually known after a trip is completed, this endpoint is useful for analytics, model experimentation, and understanding relationships in completed trip data.
 
 Example request:
 
@@ -171,20 +197,68 @@ Example response:
 }
 ```
 
-Note: this first model includes fare and total amount, so it is best interpreted as an analytical trip-duration model. A future pre-trip prediction model should exclude post-trip values such as fare, total amount, and tip amount.
-
-## Notes
-
-Numeric values from PostgreSQL `NUMERIC` fields may be serialized as strings in JSON responses. This preserves exact decimal precision for revenue, fare, distance, and percentage metrics.
-
-The prediction endpoint requires the local trained model artifact:
+### Pre-Trip Duration Prediction
 
 ```text
-ml/models/trip_duration_model.joblib
+POST /predict/pretrip-duration
 ```
 
-If the model file does not exist locally, run:
+This endpoint predicts taxi trip duration using only features that could reasonably be known before or at pickup time.
+
+This model excludes post-trip financial fields such as:
+
+```text
+fare_amount
+total_amount
+tip_amount
+```
+
+This makes it more realistic for a production-style pre-trip prediction use case.
+
+Example request:
 
 ```bash
-python ml/train_model.py
+curl -X POST "http://127.0.0.1:8000/predict/pretrip-duration" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pickup_hour": 14,
+    "pickup_day_of_week": "Wednesday",
+    "pickup_month": 1,
+    "is_weekend": false,
+    "passenger_count": 1,
+    "trip_distance": 3.2,
+    "pickup_borough": "Manhattan",
+    "dropoff_borough": "Manhattan",
+    "payment_type_id": 1
+  }'
 ```
+
+Example response:
+
+```json
+{
+  "predicted_trip_duration_minutes": 22.73
+}
+```
+
+## Prediction Endpoint Comparison
+
+| Endpoint | Purpose | Uses Fare/Total Amount? | Best Use Case |
+|---|---|---:|---|
+| `/predict/trip-duration` | Analytical trip duration prediction | Yes | Completed trip analysis and model experimentation |
+| `/predict/pretrip-duration` | Pre-trip duration prediction | No | More realistic prediction before a trip is completed |
+
+## Interactive Documentation
+
+FastAPI automatically creates Swagger/OpenAPI documentation at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+This page can be used to:
+
+- view available endpoints
+- inspect required request fields
+- test API calls directly in the browser
+- view response formats
