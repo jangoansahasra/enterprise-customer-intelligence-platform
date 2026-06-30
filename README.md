@@ -89,6 +89,7 @@ Power BI Dashboard Preparation
 ```text
 enterprise-urban-mobility-data-platform/
 ├── api/
+├── dashboard/
 ├── database/
 ├── data/
 ├── docs/
@@ -96,6 +97,7 @@ enterprise-urban-mobility-data-platform/
 ├── ml/
 ├── sql/
 ├── tests/
+├── Makefile
 ├── docker-compose.yml
 ├── requirements.txt
 └── README.md
@@ -234,6 +236,20 @@ The project includes two trip duration prediction models.
 
 The analytical model performs better because fare and total amount are strongly related to trip duration, but the pre-trip model is more realistic for prediction before a trip is completed.
 
+
+## Power BI Dashboard Plan
+
+The Power BI dashboard will connect to PostgreSQL analytics views and provide pages for executive KPIs, demand patterns, revenue and payment insights, zone performance, and ML model insights.
+
+Dashboard design details are documented in:
+
+```text
+docs/powerbi_dashboard_guide.md
+```
+The future Power BI file and dashboard screenshots will be stored under:
+```text
+dashboard/powerbi/
+```
 ## Testing
 
 Run all tests:
@@ -270,6 +286,8 @@ docs/api_documentation.md
 docs/ml_modeling.md
 docs/dashboard_summary.md
 docs/testing.md
+docs/command_guide.md
+docs/powerbi_dashboard_guide.md
 ```
 
 ## Future Improvements
