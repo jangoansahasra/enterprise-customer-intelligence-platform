@@ -1,10 +1,7 @@
 import json
-import os
-from pathlib import Path
 
 import joblib
 import pandas as pd
-from dotenv import load_dotenv
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
@@ -14,9 +11,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sqlalchemy import create_engine
 
+from config.settings import DATABASE_URL, MODEL_DIR
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-MODEL_DIR = PROJECT_ROOT / "ml" / "models"
 
 MODEL_PATH = MODEL_DIR / "pretrip_duration_model.joblib"
 METRICS_PATH = MODEL_DIR / "pretrip_duration_metrics.json"
@@ -26,21 +22,7 @@ SAMPLE_SIZE = 250_000
 RANDOM_STATE = 42
 
 
-def get_database_url() -> str:
-    """Build PostgreSQL connection URL from environment variables."""
-    load_dotenv()
-
-    db_host = os.getenv("DB_HOST", "localhost")
-    db_port = os.getenv("DB_PORT", "5433")
-    db_name = os.getenv("DB_NAME", "urban_mobility_db")
-    db_user = os.getenv("DB_USER", "urban_user")
-    db_password = os.getenv("DB_PASSWORD", "urban_password")
-
-    return f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-
-
 def load_training_data() -> pd.DataFrame:
-    """Load pre-trip model training data from PostgreSQL."""
     query = f"""
         SELECT
             pickup_hour,
@@ -60,12 +42,11 @@ def load_training_data() -> pd.DataFrame:
         LIMIT {SAMPLE_SIZE};
     """
 
-    engine = create_engine(get_database_url())
+    engine = create_engine(DATABASE_URL)
     return pd.read_sql(query, engine)
 
 
 def build_model() -> Pipeline:
-    """Build preprocessing and regression pipeline."""
     numeric_features = [
         "pickup_hour",
         "pickup_month",
@@ -117,57 +98,7 @@ def build_model() -> Pipeline:
     )
 
 
-def save_metrics(
-    df: pd.DataFrame,
-    target: str,
-    features: list[str],
-    mae: float,
-    rmse: float,
-    r2: float,
-) -> None:
-    """Save model metrics to JSON."""
-    metrics = {
-        "model": "RandomForestRegressor",
-        "model_type": "pre_trip_duration_prediction",
-        "training_rows": int(len(df)),
-        "test_size": 0.2,
-        "target": target,
-        "mae_minutes": round(float(mae), 2),
-        "rmse_minutes": round(float(rmse), 2),
-        "r2": round(float(r2), 4),
-        "features": features,
-        "excluded_post_trip_features": [
-            "fare_amount",
-            "total_amount",
-            "tip_amount",
-        ],
-    }
-
-    with open(METRICS_PATH, "w", encoding="utf-8") as file:
-        json.dump(metrics, file, indent=4)
-
-    print(f"Metrics saved to: {METRICS_PATH}")
-
-
-def save_feature_importance(model: Pipeline) -> None:
-    """Save feature importance from trained random forest model."""
-    preprocessor = model.named_steps["preprocessor"]
-    trained_model = model.named_steps["model"]
-
-    feature_names = preprocessor.get_feature_names_out()
-    feature_importance_df = pd.DataFrame(
-        {
-            "feature": feature_names,
-            "importance": trained_model.feature_importances_,
-        }
-    ).sort_values(by="importance", ascending=False)
-
-    feature_importance_df.to_csv(FEATURE_IMPORTANCE_PATH, index=False)
-    print(f"Feature importance saved to: {FEATURE_IMPORTANCE_PATH}")
-
-
 def main() -> None:
-    """Train and evaluate pre-trip duration prediction model."""
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
     print("Loading pre-trip training data from PostgreSQL...")
@@ -201,8 +132,41 @@ def main() -> None:
     print(f"RMSE: {rmse:.2f} minutes")
     print(f"R2:   {r2:.4f}")
 
-    save_metrics(df, target, list(X.columns), mae, rmse, r2)
-    save_feature_importance(model)
+    metrics = {
+        "model": "RandomForestRegressor",
+        "model_type": "pre_trip_duration_prediction",
+        "training_rows": int(len(df)),
+        "test_size": 0.2,
+        "target": target,
+        "mae_minutes": round(float(mae), 2),
+        "rmse_minutes": round(float(rmse), 2),
+        "r2": round(float(r2), 4),
+        "features": list(X.columns),
+        "excluded_post_trip_features": [
+            "fare_amount",
+            "total_amount",
+            "tip_amount",
+        ],
+    }
+
+    with open(METRICS_PATH, "w", encoding="utf-8") as file:
+        json.dump(metrics, file, indent=4)
+
+    print(f"Metrics saved to: {METRICS_PATH}")
+
+    preprocessor = model.named_steps["preprocessor"]
+    trained_model = model.named_steps["model"]
+
+    feature_names = preprocessor.get_feature_names_out()
+    feature_importance_df = pd.DataFrame(
+        {
+            "feature": feature_names,
+            "importance": trained_model.feature_importances_,
+        }
+    ).sort_values(by="importance", ascending=False)
+
+    feature_importance_df.to_csv(FEATURE_IMPORTANCE_PATH, index=False)
+    print(f"Feature importance saved to: {FEATURE_IMPORTANCE_PATH}")
 
     joblib.dump(model, MODEL_PATH)
     print(f"\nModel saved to: {MODEL_PATH}")
